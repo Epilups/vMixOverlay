@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Scoreboard control</title>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Mono:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{--bg:#111216;--panel:#1a1c21;--line:rgba(255,255,255,.09);--ink:#eceef1;--dim:#8a8e97;
+        --sans:"Barlow Condensed","Helvetica Neue",Helvetica,Arial,sans-serif;--mono:"IBM Plex Mono",ui-monospace,monospace}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:17px}
+  a{color:#7aa8ea}a:hover{color:#a5c4f2}
+  header{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 22px;border-bottom:1px solid var(--line)}
+  h1{margin:0;font-size:22px;font-weight:600;letter-spacing:.1em;text-transform:uppercase}
+  .sub{font:600 11px var(--mono);letter-spacing:.14em;color:var(--dim)}
+  main{display:grid;grid-template-columns:1fr 300px 1fr;gap:18px;padding:20px 22px 40px;max-width:1400px;margin:0 auto}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px}
+  .panel h2{margin:0 0 12px;font-size:13px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;color:var(--dim)}
+  .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .row + .row{margin-top:10px}
+  button{font-family:var(--sans);font-size:18px;font-weight:600;letter-spacing:.05em;color:var(--ink);background:#262930;
+         border:1px solid var(--line);border-radius:7px;padding:9px 14px;cursor:pointer;transition:background .12s,transform .06s}
+  button:hover{background:#31353e}
+  button:active{transform:translateY(1px)}
+  button.big{font-size:26px;padding:12px 0;flex:1;font-family:var(--mono);font-weight:700}
+  button.primary{background:#2a63b8;border-color:#2a63b8}
+  button.primary:hover{background:#3573cc}
+  button.danger{background:#7e2b22;border-color:#96342a}
+  button.ghost{background:transparent}
+  input{font-family:var(--mono);font-size:16px;background:#0e0f13;color:var(--ink);border:1px solid var(--line);
+        border-radius:6px;padding:8px 10px;width:100%}
+  input[type=color]{padding:2px;height:38px}
+  label{display:block;font:600 10px var(--mono);letter-spacing:.14em;color:var(--dim);margin:0 0 4px;text-transform:uppercase}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+  .grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+  .scoreline{display:flex;align-items:center;gap:12px;margin-bottom:14px}
+  .scoreline .v{font:700 62px/1 var(--mono);font-variant-numeric:tabular-nums;min-width:96px;text-align:center}
+  .clock{font:700 54px/1 var(--mono);text-align:center;font-variant-numeric:tabular-nums;margin:2px 0 12px}
+  .clock.run{color:#6fd08c}
+  .pen{display:flex;align-items:center;gap:8px;background:#0e0f13;border:1px solid var(--line);border-left:4px solid #d8483c;
+       border-radius:6px;padding:8px 10px;margin-top:8px}
+  .pen .who{font-size:19px;font-weight:600;min-width:52px}
+  .pen .slot{font:700 13px var(--mono);width:22px;height:22px;border-radius:5px;background:#d8483c;color:#fff;
+             display:flex;align-items:center;justify-content:center;flex:none}
+  .pen.q .slot{background:#3a3d45;color:#9aa0a8}
+  .pen .left{font:700 20px var(--mono);min-width:66px;color:#ffb4ac}
+  .pen .sp{flex:1}
+  .pen.q{border-left-color:#6a6d75;opacity:.65}
+  .pen button{font-size:14px;padding:6px 9px}
+  .empty{color:var(--dim);font:600 12px var(--mono);letter-spacing:.1em;padding:10px 0}
+  .hint{margin:10px 0 0;font-size:15px;line-height:1.45;color:var(--dim)}
+  footer{border-top:1px solid var(--line);padding:16px 22px;color:var(--dim);font-size:15px;line-height:1.6;max-width:1400px;margin:0 auto}
+  code{font:600 13px var(--mono);color:#c8cbd2;background:#0e0f13;border:1px solid var(--line);border-radius:4px;padding:1px 5px}
+  .dot{width:9px;height:9px;border-radius:50%;background:#d8483c;display:inline-block;margin-right:6px}
+  .dot.ok{background:#6fd08c}
+  @media (max-width:1000px){main{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<header>
+  <h1>Floorball scoreboard</h1>
+  <div class="row">
+    <span class="sub"><span class="dot" id="conn"></span><span id="connTxt">connecting</span></span>
+    <button id="visBtn" class="ghost">Overlay: —</button>
+    <button class="ghost" onclick="window.open('/overlay?bg=1','_blank')">Preview overlay</button>
+    <button class="danger ghost" onclick="if(confirm('Reset scores, clock and penalties?'))api('/api/reset')">Reset game</button>
+  </div>
+</header>
+
+<main>
+  <!-- HOME -->
+  <section class="panel" id="pHome">
+    <h2>Home · <span class="nm">—</span></h2>
+    <div class="scoreline">
+      <button class="big" onclick="api('/api/score?team=home&delta=-1')">−</button>
+      <div class="v" id="scoreHome">0</div>
+      <button class="big primary" onclick="api('/api/score?team=home&delta=1')">+</button>
+    </div>
+    <label>Add penalty</label>
+    <div class="grid3" id="presetHome"></div>
+    <p class="hint">Slot 1 is the top box on the overlay. A third penalty queues and starts by itself when a slot frees.</p>
+    <div id="listHome"></div>
+  </section>
+
+  <!-- CLOCK -->
+  <section class="panel">
+    <h2>Clock</h2>
+    <div class="clock" id="clockV">00:00</div>
+    <div class="row">
+      <button class="big primary" id="runBtn" onclick="api('/api/clock?action=toggle')">START</button>
+    </div>
+    <div class="row">
+      <button onclick="api('/api/clock?action=adjust&secs=-1')">−1s</button>
+      <button onclick="api('/api/clock?action=adjust&secs=1')">+1s</button>
+      <button onclick="api('/api/clock?action=adjust&secs=-60')">−1m</button>
+      <button onclick="api('/api/clock?action=adjust&secs=60')">+1m</button>
+    </div>
+    <div class="row">
+      <input id="clockSet" placeholder="12:47" style="flex:1;min-width:90px">
+      <button onclick="api('/api/clock?action=set&value='+encodeURIComponent(document.getElementById('clockSet').value))">Set</button>
+      <button class="ghost" onclick="api('/api/clock?action=reset')">Reset</button>
+    </div>
+    <h2 style="margin-top:20px">Period</h2>
+    <div class="row">
+      <button onclick="api('/api/period?delta=-1')">−</button>
+      <div class="v" id="periodV" style="font:700 34px var(--mono);flex:1;text-align:center">1</div>
+      <button onclick="api('/api/period?delta=1')">+</button>
+    </div>
+    <div class="row"><button class="ghost" style="flex:1" onclick="api('/api/period?delta=1&resetClock=1')">Next period + reset clock</button></div>
+
+    <h2 style="margin-top:20px">Teams</h2>
+    <div class="grid2">
+      <div><label>Home short</label><input id="tHomeShort"></div>
+      <div><label>Away short</label><input id="tAwayShort"></div>
+      <div><label>Home name</label><input id="tHomeName"></div>
+      <div><label>Away name</label><input id="tAwayName"></div>
+      <div><label>Home colour</label><input type="color" id="tHomeColor"></div>
+      <div><label>Away colour</label><input type="color" id="tAwayColor"></div>
+      <div><label>Home logo</label><input id="tHomeLogo" placeholder="logos/home.png"></div>
+      <div><label>Away logo</label><input id="tAwayLogo" placeholder="logos/away.png"></div>
+    </div>
+    <div class="row">
+      <button class="primary" style="flex:1" onclick="applyTeams()">Apply</button>
+      <button class="ghost" onclick="api('/api/config/save')">Save as default</button>
+    </div>
+    <div class="row"><button class="ghost" style="flex:1" onclick="api('/api/teams?swap=1')">Swap sides</button></div>
+  </section>
+
+  <!-- AWAY -->
+  <section class="panel" id="pAway">
+    <h2>Away · <span class="nm">—</span></h2>
+    <div class="scoreline">
+      <button class="big" onclick="api('/api/score?team=away&delta=-1')">−</button>
+      <div class="v" id="scoreAway">0</div>
+      <button class="big primary" onclick="api('/api/score?team=away&delta=1')">+</button>
+    </div>
+    <label>Add penalty</label>
+    <div class="grid3" id="presetAway"></div>
+    <div id="listAway"></div>
+  </section>
+</main>
+
+<footer>
+  Stream Deck: point any HTTP-request key at these, e.g.
+  <code>http://localhost:8712/api/score?team=home&amp;delta=1</code>,
+  <code>/api/clock?action=toggle</code>,
+  <code>/api/penalty/add?team=away&amp;secs=120</code>,
+  <code>/api/penalty/end?team=away&amp;slot=1</code>,
+  <code>/api/overlay?show=toggle</code>. Full list in README.md.
+</footer>
+
+<script>
+let S = null;
+const el = (id) => document.getElementById(id);
+const api = (p) => fetch(p).catch(() => {});
+const fmt = (ms) => { const t = Math.ceil(ms / 1000); return Math.floor(t / 60) + ':' + String(t % 60).padStart(2, '0'); };
+
+
+function buildPresets(s) {
+  for (const side of ['home', 'away']) {
+    const host = el('preset' + side[0].toUpperCase() + side.slice(1));
+    if (host.dataset.built) continue;
+    host.dataset.built = '1';
+    s.penaltyPresets.forEach((p) => {
+      const b = document.createElement('button');
+      b.textContent = p.label;
+      b.onclick = () => api('/api/penalty/add?team=' + side + '&secs=' + p.secs);
+      host.appendChild(b);
+    });
+  }
+}
+
+function paint(s) {
+  S = s;
+  buildPresets(s);
+  el('scoreHome').textContent = s.home.score;
+  el('scoreAway').textContent = s.away.score;
+  el('clockV').textContent = fmt(s.clock.ms);
+  el('clockV').classList.toggle('run', s.clock.running);
+  el('runBtn').textContent = s.clock.running ? 'STOP' : 'START';
+  el('runBtn').classList.toggle('danger', s.clock.running);
+  el('periodV').textContent = s.period;
+  el('pHome').querySelector('.nm').textContent = s.home.name;
+  el('pAway').querySelector('.nm').textContent = s.away.name;
+  el('visBtn').textContent = 'Overlay: ' + (s.visible ? 'shown' : 'hidden');
+
+  for (const side of ['home', 'away']) {
+    const host = el('list' + side[0].toUpperCase() + side.slice(1));
+    const list = s[side].penalties;
+    host.innerHTML = '';
+    if (!list.length) { host.innerHTML = '<div class="empty">no active penalties</div>'; continue; }
+    list.forEach((p, i) => {
+      const queued = i >= s.maxPenalties;
+      const d = document.createElement('div');
+      d.className = 'pen' + (queued ? ' q' : '');
+      d.innerHTML = '<span class="slot">' + (queued ? '·' : i + 1) + '</span>' +
+        '<span class="who">' + (p.label || 'PEN') + '</span>' +
+        '<span class="left">' + (queued ? 'queued' : fmt(p.msLeft)) + '</span><span class="sp"></span>';
+      const mk = (t, fn, cls) => { const b = document.createElement('button'); b.textContent = t; b.onclick = fn; if (cls) b.className = cls; d.appendChild(b); };
+      if (!queued) {
+        mk('−10s', () => api('/api/penalty/adjust?team=' + side + '&id=' + p.id + '&secs=-10'));
+        mk('+10s', () => api('/api/penalty/adjust?team=' + side + '&id=' + p.id + '&secs=10'));
+        mk('set', () => {
+          const v = prompt('Time remaining (m:ss)', fmt(p.msLeft));
+          if (v) api('/api/penalty/adjust?team=' + side + '&id=' + p.id + '&value=' + encodeURIComponent(v));
+        }, 'ghost');
+      }
+      mk('End', () => api('/api/penalty/end?team=' + side + '&id=' + p.id), 'danger');
+      host.appendChild(d);
+    });
+    if (list.length > 1) {
+      const b = document.createElement('button');
+      b.className = 'ghost';
+      b.style.marginTop = '8px';
+      b.style.width = '100%';
+      b.textContent = 'Swap slot 1 ↔ 2';
+      b.onclick = () => api('/api/penalty/swap?team=' + side);
+      host.appendChild(b);
+    }
+  }
+
+  for (const side of ['home', 'away']) {
+    const cap = side[0].toUpperCase() + side.slice(1);
+    const set = (id, v) => { const n = el(id); if (document.activeElement !== n) n.value = v; };
+    set('t' + cap + 'Short', s[side].short);
+    set('t' + cap + 'Name', s[side].name);
+    set('t' + cap + 'Color', s[side].color);
+    set('t' + cap + 'Logo', s[side].logo);
+  }
+}
+
+function applyTeams() {
+  const q = new URLSearchParams();
+  for (const side of ['home', 'away']) {
+    const cap = side[0].toUpperCase() + side.slice(1);
+    for (const k of ['Short', 'Name', 'Color', 'Logo']) q.set(side + k, el('t' + cap + k).value);
+  }
+  api('/api/teams?' + q.toString());
+}
+
+el('visBtn').onclick = () => api('/api/overlay?show=toggle');
+
+document.addEventListener('keydown', (e) => {
+  if (/input/i.test(e.target.tagName)) return;
+  if (e.code === 'Space') { e.preventDefault(); api('/api/clock?action=toggle'); }
+  if (e.key === 'q') api('/api/score?team=home&delta=1');
+  if (e.key === 'a') api('/api/score?team=home&delta=-1');
+  if (e.key === 'p') api('/api/score?team=away&delta=1');
+  if (e.key === 'l') api('/api/score?team=away&delta=-1');
+});
+
+function connect() {
+  const es = new EventSource('/events');
+  es.onopen = () => { el('conn').classList.add('ok'); el('connTxt').textContent = 'live'; };
+  es.onmessage = (e) => { live = true; paint(JSON.parse(e.data)); };
+  es.onerror = () => { el('conn').classList.remove('ok'); el('connTxt').textContent = 'offline'; es.close(); setTimeout(connect, 1500); };
+}
+connect();
+
+/* ?demo=1 — self-contained preview with no server behind it. */
+let live = false;
+if (new URLSearchParams(location.search).get('demo') === '1') {
+  const demo = {
+    visible: true, period: 2, maxPenalties: 2,
+    pending: { home: '', away: '' },
+    pending: { home: '', away: '' },
+    penaltyPresets: [{ label: '2 min', secs: 120 }, { label: '4 min', secs: 240 }, { label: '10 min', secs: 600 }],
+    clock: { ms: 12 * 60000 + 47000, running: true },
+    home: { name: 'Hawks', short: 'HAW', color: '#2a63b8', logo: 'logos/home.png', score: 3,
+      penalties: [{ id: 1, label: '2 min', msTotal: 120000, msLeft: 102000 },
+                  { id: 2, label: '2 min', msTotal: 120000, msLeft: 23000 }] },
+    away: { name: 'Titans', short: 'TIT', color: '#b23a2e', logo: 'logos/away.png', score: 2,
+      penalties: [{ id: 3, label: '4 min', msTotal: 240000, msLeft: 240000 }] },
+  };
+  setInterval(() => {
+    if (live) return;
+    demo.clock.ms = Math.max(0, demo.clock.ms - 250);
+    for (const s of ['home', 'away']) {
+      demo[s].penalties.forEach((p) => { p.msLeft = Math.max(0, p.msLeft - 250); });
+      demo[s].penalties = demo[s].penalties.filter((p) => p.msLeft > 0);
+    }
+    paint(demo);
+  }, 250);
+}
+</script>
+</body>
+</html>

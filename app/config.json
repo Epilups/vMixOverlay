@@ -1,0 +1,22 @@
+{
+  "periodMinutes": 20,
+  "countUp": false,
+  "maxPenalties": 2,
+  "home": {
+    "name": "Hawks",
+    "short": "HAW",
+    "color": "#2a63b8",
+    "logo": "logos/home.png"
+  },
+  "away": {
+    "name": "Titans",
+    "short": "TIT",
+    "color": "#b23a2e",
+    "logo": "logos/away.png"
+  },
+  "penaltyPresets": [
+    { "label": "2 min", "secs": 120 },
+    { "label": "4 min", "secs": 240 },
+    { "label": "10 min", "secs": 600 }
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "name": "floorball-scoreboard-overlay",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Local HTML scoreboard overlay for vMix, controllable from Stream Deck over HTTP.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Scoreboard overlay</title>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Mono:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#0c0d10; --plate:#3c3f46; --clock-bg:#e9eaec; --pen-bg:#f2f3f5;
+    --pen-accent:#d8483c; --home:#2a63b8; --away:#b23a2e;
+    --bar-h:84px; --score-w:84px; --plate-w:176px; --clock-w:168px; --logo-w:60px; --pen-h:34px;
+    --sans:"Barlow Condensed","Helvetica Neue",Helvetica,Arial,sans-serif;
+    --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;width:1920px;height:1080px;overflow:hidden;background:transparent}
+  body{font-family:var(--sans);-webkit-font-smoothing:antialiased}
+  /* ?bg=1 for previewing outside vMix */
+  body.bg{background:#15161a repeating-linear-gradient(115deg,rgba(255,255,255,.035) 0 2px,transparent 2px 22px)}
+
+  #wrap{position:absolute;top:0;left:50%;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center}
+  #bar{display:flex;align-items:stretch;height:var(--bar-h);box-shadow:0 8px 30px rgba(0,0,0,.45);
+       transform:translateY(-140%);transition:transform .55s cubic-bezier(.16,1,.3,1)}
+  body.on #bar{transform:translateY(0)}
+  #rows{display:flex;justify-content:space-between;width:100%;padding-top:5px;gap:var(--clock-w);
+        opacity:1;transition:opacity .3s ease}
+  body:not(.on) #rows{opacity:0;pointer-events:none}
+
+  .cell{display:flex;align-items:center;justify-content:center}
+  .logo{width:var(--logo-w);background:var(--ink);position:relative;overflow:hidden}
+  .logo .ph{width:38px;height:38px;border-radius:4px;background:repeating-linear-gradient(45deg,#3a3d45 0 3px,#22242a 3px 6px);
+            display:flex;align-items:center;justify-content:center;font:600 7px var(--mono);color:#c9ccd4;letter-spacing:.05em}
+  .logo img{width:44px;height:44px;object-fit:contain;display:none}
+  .logo.has img{display:block}
+  .logo.has .ph{display:none}
+  .score{width:var(--score-w);background:var(--ink);font:700 46px/1 var(--mono);color:#fff;font-variant-numeric:tabular-nums}
+  .score .n{display:block;transition:transform .28s cubic-bezier(.2,1.6,.3,1)}
+  .score.pop .n{transform:scale(1.28)}
+  .plate{width:var(--plate-w);background:var(--plate);font-size:34px;font-weight:600;letter-spacing:.09em;color:#f2f3f5;text-transform:uppercase;position:relative}
+  .plate::after{content:"";position:absolute;left:0;right:0;top:0;height:4px;background:var(--accent,transparent)}
+  #clock{width:var(--clock-w);background:var(--clock-bg);flex-direction:column;gap:2px;padding:8px 0}
+  #clock .t{font:700 40px/1 var(--mono);color:#14151a;font-variant-numeric:tabular-nums}
+  #clock .p{font:600 12px/1 var(--mono);letter-spacing:.2em;color:#6a6d75}
+  #clock.stopped .t{color:#8b8f98}
+
+  .col{position:relative;width:calc(var(--score-w) + var(--plate-w) + var(--logo-w));height:0}
+  .pen{position:absolute;left:0;right:0;top:0;height:var(--pen-h);background:var(--pen-bg);overflow:hidden;display:flex;align-items:center;
+       justify-content:space-between;padding:0 12px;font-size:21px;font-weight:600;color:#14151a;letter-spacing:.04em;
+       transition:top .34s cubic-bezier(.16,1,.3,1);animation:penIn .42s cubic-bezier(.16,1,.3,1) both}
+  .pen.out{animation:penOut .34s ease-in forwards}
+  .col.home .pen{border-left:5px solid var(--pen-accent)}
+  .col.away .pen{border-right:5px solid var(--pen-accent);flex-direction:row-reverse}
+  .pen .fill{position:absolute;top:0;bottom:0;left:0;width:100%;background:rgba(216,72,60,.18);transform-origin:left}
+  .col.away .pen .fill{left:auto;right:0;transform-origin:right}
+  .pen .tm{font-family:var(--mono);font-size:18px;font-weight:700;position:relative}
+  .pen .pl{position:relative}
+  .pen.ending{animation:penFlash .8s steps(1,end) infinite}
+  @keyframes penIn{from{opacity:0;transform:translateY(-10px) scaleY(.5)}to{opacity:1;transform:none}}
+  @keyframes penOut{to{opacity:0;transform:scaleY(.35);filter:brightness(1.6)}}
+  @keyframes penFlash{0%,50%{background:var(--pen-bg)}50.01%,100%{background:#ffd9d5}}
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div id="bar">
+    <div class="cell logo" id="logoHome"><div class="ph">LOGO</div><img alt=""></div>
+    <div class="cell score" id="scoreHome"><span class="n">0</span></div>
+    <div class="cell plate" id="plateHome">HAW</div>
+    <div class="cell" id="clock"><div class="t">20:00</div><div class="p">P1</div></div>
+    <div class="cell plate" id="plateAway">TIT</div>
+    <div class="cell score" id="scoreAway"><span class="n">0</span></div>
+    <div class="cell logo" id="logoAway"><div class="ph">LOGO</div><img alt=""></div>
+  </div>
+  <div id="rows">
+    <div class="col home" id="penHome"></div>
+    <div class="col away" id="penAway"></div>
+  </div>
+</div>
+
+<script>
+const qs = new URLSearchParams(location.search);
+if (qs.get('bg') === '1') document.body.classList.add('bg');
+
+const el = (id) => document.getElementById(id);
+const fmt = (ms) => {
+  const t = Math.ceil(ms / 1000);
+  return Math.floor(t / 60) + ':' + String(t % 60).padStart(2, '0');
+};
+const prev = { home: 0, away: 0 };
+const nodes = { home: new Map(), away: new Map() };
+
+function paintTeam(side, t, max) {
+  const scoreBox = el('score' + side[0].toUpperCase() + side.slice(1));
+  if (t.score !== prev[side]) {
+    scoreBox.querySelector('.n').textContent = t.score;
+    scoreBox.classList.add('pop');
+    setTimeout(() => scoreBox.classList.remove('pop'), 300);
+    prev[side] = t.score;
+  }
+  const plate = el('plate' + side[0].toUpperCase() + side.slice(1));
+  if (plate.textContent !== t.short) plate.textContent = t.short;
+  plate.style.setProperty('--accent', t.color);
+
+  const logo = el('logo' + side[0].toUpperCase() + side.slice(1));
+  const img = logo.querySelector('img');
+  if (t.logo && img.dataset.src !== t.logo) {
+    img.dataset.src = t.logo;
+    img.onload = () => logo.classList.add('has');
+    img.onerror = () => logo.classList.remove('has');
+    img.src = t.logo;
+  }
+  if (!t.logo) logo.classList.remove('has');
+
+  // penalties: index = slot. Only the first `max` are drawn (rest are queued
+  // server-side); rows are positioned by slot so a promotion slides upward.
+  const col = el('pen' + side[0].toUpperCase() + side.slice(1));
+  const active = t.penalties.slice(0, max);
+  const seen = new Set();
+  const SLOT = 38; // row height 34 + 4 gap
+  active.forEach((p, i) => {
+    seen.add(p.id);
+    let n = nodes[side].get(p.id);
+    if (!n) {
+      n = document.createElement('div');
+      n.className = 'pen';
+      n.innerHTML = '<span class="pl"></span><span class="tm"></span><div class="fill"></div>';
+      n.style.top = (i * SLOT) + 'px';
+      col.appendChild(n);
+      nodes[side].set(p.id, n);
+    } else {
+      n.style.top = (i * SLOT) + 'px';
+    }
+    n.querySelector('.pl').textContent = p.label || 'PENALTY';
+    n.querySelector('.tm').textContent = fmt(p.msLeft);
+    n.querySelector('.fill').style.transform = 'scaleX(' + (p.msLeft / p.msTotal).toFixed(3) + ')';
+    n.classList.toggle('ending', p.msLeft <= 10000);
+  });
+  for (const [id, n] of nodes[side]) {
+    if (!seen.has(id) && !n.classList.contains('out')) {
+      n.classList.add('out');
+      nodes[side].delete(id);
+      setTimeout(() => n.remove(), 340);
+    }
+  }
+}
+
+function paint(s) {
+  document.body.classList.toggle('on', !!s.visible);
+  const c = el('clock');
+  c.querySelector('.t').textContent = fmt(s.clock.ms);
+  c.querySelector('.p').textContent = 'P' + s.period;
+  c.classList.toggle('stopped', !s.clock.running);
+  paintTeam('home', s.home, s.maxPenalties);
+  paintTeam('away', s.away, s.maxPenalties);
+}
+
+function connect() {
+  const es = new EventSource('/events');
+  es.onmessage = (e) => { live = true; paint(JSON.parse(e.data)); };
+  es.onerror = () => { es.close(); setTimeout(connect, 1500); };
+}
+connect();
+
+/* ?demo=1 — self-contained preview (no server): fake game that ticks locally. */
+let live = false;
+if (qs.get('demo') === '1') {
+  const demo = {
+    visible: true, period: 2, maxPenalties: 2,
+    clock: { ms: 12 * 60000 + 47000, running: true },
+    home: { name: 'Hawks', short: 'HAW', color: '#2a63b8', logo: '', score: 3,
+      penalties: [{ id: 1, label: '2 min', msTotal: 120000, msLeft: 102000 },
+                  { id: 2, label: '2 min', msTotal: 120000, msLeft: 23000 }] },
+    away: { name: 'Titans', short: 'TIT', color: '#b23a2e', logo: '', score: 2,
+      penalties: [{ id: 3, label: '4 min', msTotal: 240000, msLeft: 240000 }] },
+  };
+  setInterval(() => {
+    if (live) return;
+    demo.clock.ms = Math.max(0, demo.clock.ms - 100);
+    for (const s of ['home', 'away']) {
+      demo[s].penalties.forEach((p) => { p.msLeft = Math.max(0, p.msLeft - 100); });
+      demo[s].penalties = demo[s].penalties.filter((p) => p.msLeft > 0);
+    }
+    paint(demo);
+  }, 100);
+}
+</script>
+</body>
+</html>
