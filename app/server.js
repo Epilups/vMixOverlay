@@ -24,7 +24,7 @@ const teamState = (t) => ({
 let state = {
   visible: true,
   period: 1,
-  clock: { ms: config.periodMinutes * 60000, running: false },
+  clock: { ms: config.countUp ? 0 : config.periodMinutes * 60000, running: false },
   home: teamState(config.home),
   away: teamState(config.away),
   maxPenalties: config.maxPenalties || 2,
@@ -86,6 +86,36 @@ const parseClock = (v) => {
   return (Number(m[1]) * 60 + Number(m[2])) * 1000 + (m[3] ? Number(m[3]) * 100 : 0);
 };
 const sideOf = (q) => (String(q.team || '').toLowerCase() === 'away' ? 'away' : 'home');
+
+/* A timer's displayed second changes when its raw ms crosses a multiple of
+   1000, so two timers only tick over at the same instant if their sub-second
+   remainders agree — and the game clock's remainder wanders off zero as it
+   runs, since ticks aren't wall-clock exact. Any whole-second value handed to
+   a penalty therefore has to be re-seated onto the clock's current phase, or
+   that penalty flips on its own beat forever after. The displayed second is
+   preserved; only the remainder underneath it moves (by under 1s of real
+   time), so nothing visibly jumps.
+   Counting down holds msLeft - clock.ms constant, counting up holds
+   msLeft + clock.ms — hence the opposite targets. */
+const alignToClock = (ms) => {
+  if (ms <= 0) return 0;
+  const phase = ((state.clock.ms % 1000) + 1000) % 1000;
+  const target = state.countUp ? (1000 - phase) % 1000 : phase;
+  const top = Math.ceil(ms / 1000) * 1000;
+  return top - ((((top - target) % 1000) + 1000) % 1000);
+};
+
+/* The clock is the reference, so moving it drags every running penalty back
+   onto its phase. A no-op when they're already in step. */
+const realignPenalties = () => {
+  for (const side of ['home', 'away']) {
+    for (const p of state[side].penalties) {
+      p.msLeft = alignToClock(p.msLeft);
+      if (p.msLeft > p.msTotal) p.msTotal = p.msLeft; // keep the drain bar sane
+    }
+  }
+};
+
 let penaltyId = 1;
 const HARD_CAP = 6; // per side; anything past maxPenalties is queued, this just stops runaway input
 
@@ -122,6 +152,7 @@ function api(pathname, q) {
       else if (a === 'reset') { state.clock.ms = state.countUp ? 0 : state.periodMinutes * 60000; state.clock.running = false; }
       else if (a === 'set') { const ms = parseClock(q.value); if (ms != null) state.clock.ms = ms; }
       else if (a === 'adjust') state.clock.ms = Math.max(0, state.clock.ms + (parseInt(q.secs, 10) || 0) * 1000);
+      realignPenalties();
       touch(); return { ok: true, clock: state.clock };
     }
 
@@ -131,6 +162,7 @@ function api(pathname, q) {
       if (String(q.resetClock) === '1') {
         state.clock.ms = state.countUp ? 0 : state.periodMinutes * 60000;
         state.clock.running = false;
+        realignPenalties();
       }
       touch(); return { ok: true, period: state.period };
     }
@@ -150,14 +182,7 @@ function api(pathname, q) {
       if (state[s].penalties.length >= HARD_CAP) return { ok: false, reason: 'cap', penalties: state[s].penalties };
       const secs = clamp(parseInt(q.secs, 10) || state.penaltyPresets[0].secs, 1, 3600);
       const preset = state.penaltyPresets.find((p) => p.secs === secs);
-      // Align to the game clock's current sub-second phase (it drifts off a
-      // clean multiple of 1000 over time since ticks aren't wall-clock exact)
-      // so this penalty's displayed seconds flip in lockstep with the clock
-      // forever after, instead of drifting up to ~1s apart from it. Subtract
-      // (not add) the needed remainder so the displayed duration still reads
-      // as exactly `secs` instead of rounding up to secs+1.
-      const phase = ((state.clock.ms % 1000) + 1000) % 1000;
-      const ms = secs * 1000 - ((1000 - phase) % 1000);
+      const ms = alignToClock(secs * 1000);
       state[s].penalties.push({
         id: penaltyId++,
         msTotal: ms,
@@ -184,8 +209,8 @@ function api(pathname, q) {
       if (i < 0) return { ok: false, reason: 'empty slot', penalties: state[s].penalties };
       const p = state[s].penalties[i];
       const exact = parseClock(q.value);
-      if (exact != null) p.msLeft = clamp(exact, 0, 3600000);
-      else p.msLeft = clamp(p.msLeft + (parseInt(q.secs, 10) || 0) * 1000, 0, 3600000);
+      const raw = exact != null ? exact : p.msLeft + (parseInt(q.secs, 10) || 0) * 1000;
+      p.msLeft = alignToClock(clamp(raw, 0, 3600000));
       if (p.msLeft > p.msTotal) p.msTotal = p.msLeft; // keep the drain bar sane
       if (p.msLeft === 0) state[s].penalties.splice(i, 1);
       touch(); return { ok: true, penalties: state[s].penalties };
