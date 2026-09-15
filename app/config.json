@@ -1,6 +1,6 @@
 {
   "periodMinutes": 20,
-  "countUp": false,
+  "countUp": true,
   "maxPenalties": 2,
   "home": {
     "name": "Hawks",

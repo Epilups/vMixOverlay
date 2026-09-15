@@ -24,7 +24,7 @@ const teamState = (t) => ({
 let state = {
   visible: true,
   period: 1,
-  clock: { ms: config.periodMinutes * 60000, running: false },
+  clock: { ms: config.countUp ? 0 : config.periodMinutes * 60000, running: false },
   home: teamState(config.home),
   away: teamState(config.away),
   maxPenalties: config.maxPenalties || 2,
