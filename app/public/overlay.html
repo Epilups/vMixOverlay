@@ -162,13 +162,12 @@ function paint(s) {
 
 function connect() {
   const es = new EventSource('/events');
-  es.onmessage = (e) => { live = true; paint(JSON.parse(e.data)); };
+  es.onmessage = (e) => paint(JSON.parse(e.data));
   es.onerror = () => { es.close(); setTimeout(connect, 1500); };
 }
-connect();
 
-/* ?demo=1 — self-contained preview (no server): fake game that ticks locally. */
-let live = false;
+/* ?demo=1 — self-contained preview: ticks a fake game locally instead of
+   subscribing, so server state can't overwrite it. */
 if (qs.get('demo') === '1') {
   const demo = {
     visible: true, period: 2, maxPenalties: 2,
@@ -180,7 +179,6 @@ if (qs.get('demo') === '1') {
       penalties: [{ id: 3, label: '4 min', msTotal: 240000, msLeft: 240000 }] },
   };
   setInterval(() => {
-    if (live) return;
     demo.clock.ms = Math.max(0, demo.clock.ms - 100);
     for (const s of ['home', 'away']) {
       demo[s].penalties.forEach((p) => { p.msLeft = Math.max(0, p.msLeft - 100); });
@@ -188,6 +186,8 @@ if (qs.get('demo') === '1') {
     }
     paint(demo);
   }, 100);
+} else {
+  connect();
 }
 </script>
 </body>
