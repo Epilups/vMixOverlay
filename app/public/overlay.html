@@ -10,8 +10,9 @@
      box; when it expires slot 2 slides left into its place. */
   :root{
     --panel:rgba(24,26,31,.94); --clock-bg:#0b0c0f; --pen-accent:#e4574a;
-    --row-h:47px; --team-w:244px; --score-w:52px; --logo-w:30px;
+    --row-h:47px; --team-w:158px; --score-w:52px; --logo-w:30px;
     --clock-w:96px; --pen-w:84px; --gap:2px;
+    --pens-w:172px; /* maxPenalties * SLOT, kept in sync from paint() */
     --margin-top:48px; --margin-left:48px;
     --sans:"Barlow Condensed","Helvetica Neue",Helvetica,Arial,sans-serif;
     --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
@@ -38,18 +39,26 @@
   #teams{display:flex;flex-direction:column;gap:var(--gap)}
   .row{display:flex;align-items:stretch}
   .team{width:var(--team-w);height:var(--row-h);background:var(--panel);display:flex;align-items:center;
-        padding-left:12px;gap:11px}
+        padding-left:12px;gap:8px}
   .team .logo{width:var(--logo-w);height:var(--logo-w);flex:none;display:none}
   .team.has .logo{display:block;object-fit:contain}
-  .team .short{flex:1;font-size:24px;font-weight:600;letter-spacing:.09em;color:#eceef1;text-transform:uppercase;
-               white-space:nowrap;overflow:hidden}
+  /* Right-aligned so the abbreviation always ends one gap short of the score.
+     Codes vary in width (TIT 34px, ĶEK 46px) and the logo may be absent, and
+     left-aligning would dump all of that slack between the name and the score. */
+  .team .short{flex:1;text-align:right;font-size:24px;font-weight:600;letter-spacing:.09em;color:#eceef1;
+               text-transform:uppercase;white-space:nowrap;overflow:hidden}
   .team .score{width:var(--score-w);align-self:stretch;background:var(--accent,#2a63b8);display:flex;align-items:center;
                justify-content:center;font:700 26px/1 var(--mono);color:#fff;font-variant-numeric:tabular-nums}
   .team .score .n{display:block;transition:transform .28s cubic-bezier(.2,1.6,.3,1)}
   .team.pop .score .n{transform:scale(1.26)}
 
-  /* penalty track: zero-width, rows placed absolutely by slot index */
-  .pens{position:relative;width:0;height:var(--row-h)}
+  /* Penalty track: rows are placed absolutely by slot index, so the track only
+     needs to reserve the slots' footprint. It has no background of its own, so
+     reserving the full width costs nothing visually — but it does put the
+     penalties inside #wrap's measured width, which is what the hide transform
+     translates by. With width:0 they hung outside the box and stayed on screen
+     after the bar slid off. */
+  .pens{position:relative;width:var(--pens-w);height:var(--row-h)}
   .pen{position:absolute;top:0;left:0;width:var(--pen-w);height:var(--row-h);background:var(--panel);
         overflow:hidden;display:flex;align-items:center;justify-content:center;
         transition:left .34s cubic-bezier(.16,1,.3,1);
@@ -86,9 +95,10 @@ const el = (id) => document.getElementById(id);
 const cap = (s) => s[0].toUpperCase() + s.slice(1);
 // Time remaining rounds up, so a full 2:00 shows for its whole first second;
 // elapsed time rounds down, so it only reads 0:01 once a second has actually passed.
-const fmt = (ms, elapsed) => {
+const fmt = (ms, { elapsed = false, pad = false } = {}) => {
   const t = elapsed ? Math.floor(ms / 1000) : Math.ceil(ms / 1000);
-  return Math.floor(t / 60) + ':' + String(t % 60).padStart(2, '0');
+  const m = String(Math.floor(t / 60));
+  return (pad ? m.padStart(2, '0') : m) + ':' + String(t % 60).padStart(2, '0');
 };
 const prev = { home: 0, away: 0 };
 const nodes = { home: new Map(), away: new Map() };
@@ -146,8 +156,9 @@ function paintTeam(side, t, max) {
 
 function paint(s) {
   document.body.classList.toggle('on', !!s.visible);
+  document.documentElement.style.setProperty('--pens-w', (s.maxPenalties * SLOT) + 'px');
   const c = el('clock');
-  c.querySelector('.t').textContent = fmt(s.clock.ms, s.countUp);
+  c.querySelector('.t').textContent = fmt(s.clock.ms, { elapsed: s.countUp, pad: true });
   c.classList.toggle('stopped', !s.clock.running);
   const dots = c.querySelector('.p');
   const total = Math.max(3, s.period);

@@ -155,7 +155,11 @@
 let S = null;
 const el = (id) => document.getElementById(id);
 const api = (p) => fetch(p).catch(() => {});
-const fmt = (ms, elapsed) => { const t = elapsed ? Math.floor(ms / 1000) : Math.ceil(ms / 1000); return Math.floor(t / 60) + ':' + String(t % 60).padStart(2, '0'); };
+const fmt = (ms, { elapsed = false, pad = false } = {}) => {
+  const t = elapsed ? Math.floor(ms / 1000) : Math.ceil(ms / 1000);
+  const m = String(Math.floor(t / 60));
+  return (pad ? m.padStart(2, '0') : m) + ':' + String(t % 60).padStart(2, '0');
+};
 
 
 function buildPresets(s) {
@@ -177,7 +181,7 @@ function paint(s) {
   buildPresets(s);
   el('scoreHome').textContent = s.home.score;
   el('scoreAway').textContent = s.away.score;
-  el('clockV').textContent = fmt(s.clock.ms, s.countUp);
+  el('clockV').textContent = fmt(s.clock.ms, { elapsed: s.countUp, pad: true });
   el('clockV').classList.toggle('run', s.clock.running);
   el('runBtn').textContent = s.clock.running ? 'STOP' : 'START';
   el('runBtn').classList.toggle('danger', s.clock.running);
