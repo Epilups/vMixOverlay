@@ -156,8 +156,12 @@ function api(pathname, q) {
       // forever after, instead of drifting up to ~1s apart from it. Subtract
       // (not add) the needed remainder so the displayed duration still reads
       // as exactly `secs` instead of rounding up to secs+1.
+      // Both flip on a multiple of 1000, but the clock runs towards the
+      // penalty when counting down and away from it when counting up, so the
+      // quantity held invariant is msLeft - clock.ms one way and
+      // msLeft + clock.ms the other. Each needs the opposite correction.
       const phase = ((state.clock.ms % 1000) + 1000) % 1000;
-      const ms = secs * 1000 - ((1000 - phase) % 1000);
+      const ms = secs * 1000 - (state.countUp ? phase : (1000 - phase) % 1000);
       state[s].penalties.push({
         id: penaltyId++,
         msTotal: ms,
