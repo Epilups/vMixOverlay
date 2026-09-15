@@ -84,8 +84,10 @@ if (qs.get('bg') === '1') document.body.classList.add('bg');
 
 const el = (id) => document.getElementById(id);
 const cap = (s) => s[0].toUpperCase() + s.slice(1);
-const fmt = (ms) => {
-  const t = Math.ceil(ms / 1000);
+// Time remaining rounds up, so a full 2:00 shows for its whole first second;
+// elapsed time rounds down, so it only reads 0:01 once a second has actually passed.
+const fmt = (ms, elapsed) => {
+  const t = elapsed ? Math.floor(ms / 1000) : Math.ceil(ms / 1000);
   return Math.floor(t / 60) + ':' + String(t % 60).padStart(2, '0');
 };
 const prev = { home: 0, away: 0 };
@@ -145,7 +147,7 @@ function paintTeam(side, t, max) {
 function paint(s) {
   document.body.classList.toggle('on', !!s.visible);
   const c = el('clock');
-  c.querySelector('.t').textContent = fmt(s.clock.ms);
+  c.querySelector('.t').textContent = fmt(s.clock.ms, s.countUp);
   c.classList.toggle('stopped', !s.clock.running);
   const dots = c.querySelector('.p');
   const total = Math.max(3, s.period);
