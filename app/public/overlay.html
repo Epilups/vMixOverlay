@@ -3,8 +3,15 @@
 <head>
 <meta charset="utf-8">
 <title>Scoreboard overlay</title>
-<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Mono:wght@500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
+<link rel="preload" href="/fonts/LemonMilk-Regular.woff2" as="font" type="font/woff2" crossorigin>
 <style>
+  /* Self-hosted: the overlay must not wait on a CDN mid-game. Regular is the
+     only weight shipped, so every timer rule asks for 400 — a heavier request
+     would get a synthesised bold that smears this face. font-display:block
+     hides the digits for a beat rather than flashing them in the fallback. */
+  @font-face{font-family:'LEMON MILK';font-style:normal;font-weight:400;font-display:block;
+             src:url('/fonts/LemonMilk-Regular.woff2') format('woff2')}
   /* Corner bug (design 3c): anchored top-left, teams stacked vertically,
      penalties extend to the RIGHT of each team's row. Slot 1 sits nearest the
      box; when it expires slot 2 slides left into its place. */
@@ -15,7 +22,11 @@
     --pens-w:172px; /* maxPenalties * SLOT, kept in sync from paint() */
     --margin-top:48px; --margin-left:48px;
     --sans:"Barlow Condensed","Helvetica Neue",Helvetica,Arial,sans-serif;
-    --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+    /* Every numeric readout: clock, scores, penalties. LEMON MILK digits
+       stand ~14% taller than Plex Mono at the same px, so the sizes below
+       are stepped down to keep the cap height — and the tuned box widths
+       — where they were. */
+    --timer:"LEMON MILK","Barlow Condensed",Helvetica,Arial,sans-serif;
   }
   *{box-sizing:border-box}
   html,body{margin:0;width:1920px;height:1080px;overflow:hidden;background:transparent}
@@ -30,7 +41,7 @@
 
   #clock{width:var(--clock-w);background:var(--clock-bg);border-radius:5px 0 0 5px;
          display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px}
-  #clock .t{font:700 26px/1 var(--mono);color:#fff;font-variant-numeric:tabular-nums}
+  #clock .t{font:400 23px/1 var(--timer);color:#fff;font-variant-numeric:tabular-nums;letter-spacing:.01em}
   #clock.stopped .t{color:#9aa0a8}
   #clock .p{display:flex;gap:4px}
   #clock .p i{width:14px;height:3px;background:rgba(255,255,255,.22)}
@@ -48,7 +59,7 @@
   .team .short{flex:1;text-align:right;font-size:24px;font-weight:600;letter-spacing:.09em;color:#eceef1;
                text-transform:uppercase;white-space:nowrap;overflow:hidden}
   .team .score{width:var(--score-w);align-self:stretch;background:var(--accent,#2a63b8);display:flex;align-items:center;
-               justify-content:center;font:700 26px/1 var(--mono);color:#fff;font-variant-numeric:tabular-nums}
+               justify-content:center;font:400 23px/1 var(--timer);color:#fff;font-variant-numeric:tabular-nums}
   .team .score .n{display:block;transition:transform .28s cubic-bezier(.2,1.6,.3,1)}
   .team.pop .score .n{transform:scale(1.26)}
 
@@ -64,7 +75,7 @@
         transition:left .34s cubic-bezier(.16,1,.3,1);
         animation:penIn .42s cubic-bezier(.16,1,.3,1) both;transform-origin:left center}
   .pen.out{animation:penOut .3s ease-in forwards}
-  .pen .tm{font:700 19px/1 var(--mono);color:#fff;font-variant-numeric:tabular-nums;position:relative}
+  .pen .tm{font:400 17px/1 var(--timer);color:#fff;font-variant-numeric:tabular-nums;position:relative}
   .pen .fill{position:absolute;bottom:0;left:0;height:3px;width:100%;background:var(--pen-accent);transform-origin:left}
   .pen.ending .tm{animation:penFlash .8s steps(1,end) infinite}
   @keyframes penIn{from{opacity:0;transform:scaleX(.3)}to{opacity:1;transform:none}}
