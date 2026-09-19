@@ -3,15 +3,14 @@
 <head>
 <meta charset="utf-8">
 <title>Scoreboard overlay</title>
-<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
-<link rel="preload" href="/fonts/LemonMilk-Regular.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/fonts/IronMan.ttf" as="font" type="font/ttf" crossorigin>
 <style>
   /* Self-hosted: the overlay must not wait on a CDN mid-game. Regular is the
-     only weight shipped, so every timer rule asks for 400 — a heavier request
-     would get a synthesised bold that smears this face. font-display:block
-     hides the digits for a beat rather than flashing them in the fallback. */
-  @font-face{font-family:'LEMON MILK';font-style:normal;font-weight:400;font-display:block;
-             src:url('/fonts/LemonMilk-Regular.woff2') format('woff2')}
+     only weight shipped, so every rule asks for 400 — a heavier request would
+     get a synthesised bold that smears this face. font-display:block hides the
+     text for a beat rather than flashing it in the fallback. */
+  @font-face{font-family:'IronMan';font-style:normal;font-weight:400;font-display:block;
+             src:url('/fonts/IronMan.ttf') format('truetype')}
   /* Corner bug (design 3c): anchored top-left, teams stacked vertically,
      penalties extend to the RIGHT of each team's row. Slot 1 sits nearest the
      box; when it expires slot 2 slides left into its place. */
@@ -21,16 +20,11 @@
     --clock-w:96px; --pen-w:84px; --gap:2px;
     --pens-w:172px; /* maxPenalties * SLOT, kept in sync from paint() */
     --margin-top:48px; --margin-left:48px;
-    --sans:"Barlow Condensed","Helvetica Neue",Helvetica,Arial,sans-serif;
-    /* Every numeric readout: clock, scores, penalties. LEMON MILK digits
-       stand ~14% taller than Plex Mono at the same px, so the sizes below
-       are stepped down to keep the cap height — and the tuned box widths
-       — where they were. */
-    --timer:"LEMON MILK","Barlow Condensed",Helvetica,Arial,sans-serif;
+    --face:"IronMan","Helvetica Neue",Helvetica,Arial,sans-serif;
   }
   *{box-sizing:border-box}
   html,body{margin:0;width:1920px;height:1080px;overflow:hidden;background:transparent}
-  body{font-family:var(--sans);-webkit-font-smoothing:antialiased}
+  body{font:400 16px var(--face);-webkit-font-smoothing:antialiased}
   /* ?bg=1 for previewing outside vMix */
   body.bg{background:#15161a repeating-linear-gradient(115deg,rgba(255,255,255,.035) 0 2px,transparent 2px 22px)}
 
@@ -41,8 +35,13 @@
 
   #clock{width:var(--clock-w);background:var(--clock-bg);border-radius:5px 0 0 5px;
          display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px}
-  #clock .t{font:400 23px/1 var(--timer);color:#fff;font-variant-numeric:tabular-nums;letter-spacing:.01em}
+  #clock .t{font:400 39px/1 var(--face);color:#fff}
   #clock.stopped .t{color:#9aa0a8}
+  /* IronMan has proportional figures only (a 1 is 70% the width of a 0) and
+     no tnum feature, so centred times would shuffle sideways every second.
+     setTime() gives each digit a cell as wide as the widest figure instead. */
+  .t i,.tm i{display:inline-block;width:.45em;text-align:center;font-style:normal}
+  .t i.c,.tm i.c{width:.24em}
   #clock .p{display:flex;gap:4px}
   #clock .p i{width:14px;height:3px;background:rgba(255,255,255,.22)}
   #clock .p i.on{background:#fff}
@@ -54,12 +53,12 @@
   .team .logo{width:var(--logo-w);height:var(--logo-w);flex:none;display:none}
   .team.has .logo{display:block;object-fit:contain}
   /* Right-aligned so the abbreviation always ends one gap short of the score.
-     Codes vary in width (TIT 34px, ĶEK 46px) and the logo may be absent, and
+     Codes vary in width (TIT 37px, HAW 52px) and the logo may be absent, and
      left-aligning would dump all of that slack between the name and the score. */
-  .team .short{flex:1;text-align:right;font-size:24px;font-weight:600;letter-spacing:.09em;color:#eceef1;
+  .team .short{flex:1;text-align:right;font-size:29px;letter-spacing:.09em;color:#eceef1;
                text-transform:uppercase;white-space:nowrap;overflow:hidden}
   .team .score{width:var(--score-w);align-self:stretch;background:var(--accent,#2a63b8);display:flex;align-items:center;
-               justify-content:center;font:400 23px/1 var(--timer);color:#fff;font-variant-numeric:tabular-nums}
+               justify-content:center;font:400 34px/1 var(--face);color:#fff}
   .team .score .n{display:block;transition:transform .28s cubic-bezier(.2,1.6,.3,1)}
   .team.pop .score .n{transform:scale(1.26)}
 
@@ -75,7 +74,7 @@
         transition:left .34s cubic-bezier(.16,1,.3,1);
         animation:penIn .42s cubic-bezier(.16,1,.3,1) both;transform-origin:left center}
   .pen.out{animation:penOut .3s ease-in forwards}
-  .pen .tm{font:400 17px/1 var(--timer);color:#fff;font-variant-numeric:tabular-nums;position:relative}
+  .pen .tm{font:400 30px/1 var(--face);color:#fff;position:relative}
   .pen .fill{position:absolute;bottom:0;left:0;height:3px;width:100%;background:var(--pen-accent);transform-origin:left}
   .pen.ending .tm{animation:penFlash .8s steps(1,end) infinite}
   @keyframes penIn{from{opacity:0;transform:scaleX(.3)}to{opacity:1;transform:none}}
@@ -110,6 +109,12 @@ const fmt = (ms, { elapsed = false, pad = false } = {}) => {
   const t = elapsed ? Math.floor(ms / 1000) : Math.ceil(ms / 1000);
   const m = String(Math.floor(t / 60));
   return (pad ? m.padStart(2, '0') : m) + ':' + String(t % 60).padStart(2, '0');
+};
+// Rebuilds the digit cells only when the text changes, not on every tick.
+const setTime = (node, str) => {
+  if (node.dataset.v === str) return;
+  node.dataset.v = str;
+  node.innerHTML = [...str].map((ch) => ch === ':' ? '<i class="c">:</i>' : '<i>' + ch + '</i>').join('');
 };
 const prev = { home: 0, away: 0 };
 const nodes = { home: new Map(), away: new Map() };
@@ -152,7 +157,7 @@ function paintTeam(side, t, max) {
       nodes[side].set(p.id, n);
     }
     n.style.left = (i * SLOT) + 'px';
-    n.querySelector('.tm').textContent = fmt(p.msLeft);
+    setTime(n.querySelector('.tm'), fmt(p.msLeft));
     n.querySelector('.fill').style.transform = 'scaleX(' + (p.msLeft / p.msTotal).toFixed(3) + ')';
     n.classList.toggle('ending', p.msLeft <= 10000);
   });
@@ -169,7 +174,7 @@ function paint(s) {
   document.body.classList.toggle('on', !!s.visible);
   document.documentElement.style.setProperty('--pens-w', (s.maxPenalties * SLOT) + 'px');
   const c = el('clock');
-  c.querySelector('.t').textContent = fmt(s.clock.ms, { elapsed: s.countUp, pad: true });
+  setTime(c.querySelector('.t'), fmt(s.clock.ms, { elapsed: s.countUp, pad: true }));
   c.classList.toggle('stopped', !s.clock.running);
   const dots = c.querySelector('.p');
   const total = Math.max(3, s.period);
