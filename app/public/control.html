@@ -114,8 +114,6 @@
     <div class="grid2">
       <div><label>Home short</label><input id="tHomeShort"></div>
       <div><label>Away short</label><input id="tAwayShort"></div>
-      <div><label>Home name</label><input id="tHomeName"></div>
-      <div><label>Away name</label><input id="tAwayName"></div>
       <div><label>Home colour</label><input type="color" id="tHomeColor"></div>
       <div><label>Away colour</label><input type="color" id="tAwayColor"></div>
       <div><label>Home logo</label><input id="tHomeLogo" placeholder="logos/home.png"></div>
@@ -186,8 +184,8 @@ function paint(s) {
   el('runBtn').textContent = s.clock.running ? 'STOP' : 'START';
   el('runBtn').classList.toggle('danger', s.clock.running);
   el('periodV').textContent = s.period;
-  el('pHome').querySelector('.nm').textContent = s.home.name;
-  el('pAway').querySelector('.nm').textContent = s.away.name;
+  el('pHome').querySelector('.nm').textContent = s.home.short;
+  el('pAway').querySelector('.nm').textContent = s.away.short;
   el('visBtn').textContent = 'Overlay: ' + (s.visible ? 'shown' : 'hidden');
 
   for (const side of ['home', 'away']) {
@@ -229,7 +227,6 @@ function paint(s) {
     const cap = side[0].toUpperCase() + side.slice(1);
     const set = (id, v) => { const n = el(id); if (document.activeElement !== n) n.value = v; };
     set('t' + cap + 'Short', s[side].short);
-    set('t' + cap + 'Name', s[side].name);
     set('t' + cap + 'Color', s[side].color);
     set('t' + cap + 'Logo', s[side].logo);
   }
@@ -239,7 +236,7 @@ function applyTeams() {
   const q = new URLSearchParams();
   for (const side of ['home', 'away']) {
     const cap = side[0].toUpperCase() + side.slice(1);
-    for (const k of ['Short', 'Name', 'Color', 'Logo']) q.set(side + k, el('t' + cap + k).value);
+    for (const k of ['Short', 'Color', 'Logo']) q.set(side + k, el('t' + cap + k).value);
   }
   api('/api/teams?' + q.toString());
 }

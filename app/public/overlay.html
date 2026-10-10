@@ -3,26 +3,26 @@
 <head>
 <meta charset="utf-8">
 <title>Scoreboard overlay</title>
-<link rel="preload" href="/fonts/LemonMilk-Regular.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/fonts/Anton-Regular.ttf" as="font" type="font/ttf" crossorigin>
 <style>
   /* Self-hosted: the overlay must not wait on a CDN mid-game. Regular is the
      only weight shipped, so every rule asks for 400 — a heavier request would
      get a synthesised bold that smears this face. font-display:block hides the
      text for a beat rather than flashing it in the fallback. */
-  @font-face{font-family:'LEMON MILK';font-style:normal;font-weight:400;font-display:block;
-             src:url('/fonts/LemonMilk-Regular.woff2') format('woff2')}
+  @font-face{font-family:'Anton';font-style:normal;font-weight:400;font-display:block;
+             src:url('/fonts/Anton-Regular.ttf') format('truetype')}
   /* Corner bug (design 3c): anchored top-left, teams stacked vertically,
      penalties extend to the RIGHT of each team's row. Slot 1 sits nearest the
      box; when it expires slot 2 slides left into its place. */
   :root{
-    --panel:rgba(24,26,31,.94); --clock-bg:#0b0c0f; --pen-accent:#e4574a;
+    --panel:rgba(24,26,31,.94); --clock-bg:rgba(24,26,31,.94); --pen-accent:#e4574a;
     /* --team-w covers the padding, logo, code AND score. At 29px the widest
        code (HAW) runs 79px, so the code gets 84px: 12 + 30 + gap 8 + 84 + 64. */
     --row-h:47px; --team-w:198px; --score-w:64px; --logo-w:45px;
     --clock-w:136px; --pen-w:104px; --gap:2px;
     --pens-w:212px; /* maxPenalties * SLOT, kept in sync from paint() */
     --margin-top:48px; --margin-left:48px;
-    --face:"LEMON MILK","Helvetica Neue",Helvetica,Arial,sans-serif;
+    --face:"Anton","Helvetica Neue",Helvetica,Arial,sans-serif;
   }
   *{box-sizing:border-box}
   html,body{margin:0;width:1920px;height:1080px;overflow:hidden;background:transparent}
@@ -30,7 +30,7 @@
   /* ?bg=1 for previewing outside vMix */
   body.bg{background:#15161a repeating-linear-gradient(115deg,rgba(255,255,255,.035) 0 2px,transparent 2px 22px)}
 
-  #wrap{position:absolute;top:var(--margin-top);left:var(--margin-left);display:flex;align-items:stretch;
+  #wrap{position:absolute;top:var(--margin-top);left:var(--margin-left);display:flex;align-items:stretch;gap:var(--gap);
         filter:drop-shadow(0 8px 24px rgba(0,0,0,.5));
         transform:translateX(calc(-100% - var(--margin-left)));transition:transform .55s cubic-bezier(.16,1,.3,1)}
   body.on #wrap{transform:translateX(0)}
